@@ -13,9 +13,28 @@ import {
   Hash
 } from 'lucide-react';
 import { RESOURCE_ESTIMATION, ICE_DETECTION_RESULTS } from '../data/missionData';
+import { waterMass, uncertaintyRange } from '../lib/calc';
 
 export default function ResourceReportModal({ isOpen, onClose, selectedRegion, calculationData }) {
   if (!isOpen) return null;
+
+  const res = calculationData || RESOURCE_ESTIMATION;
+  const volVal = res.estimatedIceVolumeValue ?? 1.84e6;
+  const massVal = waterMass(volVal, 920);
+  const volRange = uncertaintyRange(volVal, 0.30);
+  const massRange = uncertaintyRange(massVal, 0.30);
+
+  const displayVol = res.estimatedIceVolume ?? `${(volVal / 1e6).toFixed(2)} × 10⁶ m³`;
+  const displayMass = `${(massVal / 1e9).toFixed(2)} × 10⁹ kg`;
+  const displayVolMin = `${(volRange.min / 1e6).toFixed(2)} × 10⁶ m³`;
+  const displayVolMax = `${(volRange.max / 1e6).toFixed(2)} × 10⁶ m³`;
+  const displayMassMin = `${(massRange.min / 1e9).toFixed(2)} × 10⁹ kg`;
+  const displayMassMax = `${(massRange.max / 1e9).toFixed(2)} × 10⁹ kg`;
+  const densityProductString = `${(volVal / 1e6).toFixed(2)} × 10⁶ m³ × 920 kg/m³ = ${(massVal / 1e9).toFixed(4)} × 10⁹ kg`;
+
+  const propellantTonnes = `${(massVal / 1000 / 1e6).toFixed(2)} × 10⁶ t`;
+  const potableLiters = `${(massVal / 1e9).toFixed(2)} × 10⁹ L`;
+  const commercialBillion = `$${((massVal * 20) / 1e9).toFixed(1)} Billion`;
 
   const reportId = `ISRO-SAC-LIP-2026-${Math.floor(1000 + Math.random() * 9000)}`;
   const timestamp = new Date().toUTCString();
@@ -121,26 +140,26 @@ export default function ResourceReportModal({ isOpen, onClose, selectedRegion, c
               <tbody>
                 <tr>
                   <td className="font-semibold text-white">Ice Concentration</td>
-                  <td className="font-bold text-cyan">{RESOURCE_ESTIMATION.iceConcentration}</td>
+                  <td className="font-bold text-cyan">{res.iceConcentration}</td>
                   <td className="text-secondary">3.29% – 6.11%</td>
                   <td className="text-dim">By volume fraction within upper regolith</td>
                 </tr>
                 <tr>
                   <td className="font-semibold text-white">Target Depth Range</td>
-                  <td className="font-bold text-primary">{RESOURCE_ESTIMATION.depthRange}</td>
-                  <td className="text-secondary">Stratum 0.5m – 5.0m</td>
-                  <td className="text-dim">Desiccated dry lag overburden (0–0.5m) excluded</td>
+                  <td className="font-bold text-primary">{res.depthRange}</td>
+                  <td className="text-secondary">Stratum {res.dryLagDepthM ?? 0.5}m – {(res.depthRangeMax ?? 5.0).toFixed(1)}m</td>
+                  <td className="text-dim">Desiccated dry lag overburden (0–{res.dryLagDepthM ?? 0.5}m) excluded</td>
                 </tr>
                 <tr>
                   <td className="font-semibold text-white">Estimated Ice Volume</td>
-                  <td className="font-bold text-green text-sm">{RESOURCE_ESTIMATION.estimatedIceVolume}</td>
-                  <td className="text-amber font-mono">{RESOURCE_ESTIMATION.volumeRangeMin} – {RESOURCE_ESTIMATION.volumeRangeMax}</td>
-                  <td className="text-dim">DFSAR 21.3 km² PSR analysis envelope</td>
+                  <td className="font-bold text-green text-sm">{displayVol}</td>
+                  <td className="text-amber font-mono">{displayVolMin} – {displayVolMax}</td>
+                  <td className="text-dim">DFSAR {res.analysisAreaKm2 ?? 8.70} km² sub-area ({selectedRegion.psrArea} total PSR)</td>
                 </tr>
                 <tr>
                   <td className="font-semibold text-white">Water-Equivalent Mass</td>
-                  <td className="font-bold text-green text-sm">{RESOURCE_ESTIMATION.waterEquivalentMass}</td>
-                  <td className="text-amber font-mono">{RESOURCE_ESTIMATION.massRangeMin} – {RESOURCE_ESTIMATION.massRangeMax}</td>
+                  <td className="font-bold text-green text-sm">{displayMass}</td>
+                  <td className="text-amber font-mono">{displayMassMin} – {displayMassMax}</td>
                   <td className="text-cyan font-mono">ρ = ~920 kg/m³ (water-ice solid density)</td>
                 </tr>
               </tbody>
@@ -148,9 +167,9 @@ export default function ResourceReportModal({ isOpen, onClose, selectedRegion, c
 
             {/* Density Note */}
             <div className="p-3 bg-[#0E1724] border border-[#1B2F48] rounded text-xs text-secondary leading-relaxed">
-              <strong className="text-primary font-mono">Physical Consistency Note:</strong> The estimated mass of <span className="text-green font-mono">1.69 × 10⁹ kg</span> uses the true solid water-ice density (<span className="text-cyan font-mono">~920 kg/m³</span> @ 38K) rather than liquid water density (<span className="text-dim font-mono">1,000 kg/m³</span>):
+              <strong className="text-primary font-mono">Physical Consistency Note:</strong> The estimated mass of <span className="text-green font-mono">{displayMass}</span> uses the true solid water-ice density (<span className="text-cyan font-mono">~920 kg/m³</span> @ 38K) rather than liquid water density (<span className="text-dim font-mono">1,000 kg/m³</span>):
               <div className="font-mono text-cyan mt-1">
-                Mass = 1.84 × 10⁶ m³ × 920 kg/m³ = 1.6928 × 10⁹ kg (strictly within verified ±30% range: 1.18×10⁹ – 2.20×10⁹ kg).
+                Mass = {densityProductString} (strictly within verified ±30% range: {displayMassMin} – {displayMassMax}).
               </div>
             </div>
           </div>
@@ -167,7 +186,7 @@ export default function ResourceReportModal({ isOpen, onClose, selectedRegion, c
                   <Flame className="w-4 h-4 text-amber" />
                 </div>
                 <div className="text-xl font-bold text-amber my-1">
-                  1.69 × 10⁶ t
+                  {propellantTonnes}
                 </div>
                 <div className="text-[11px] text-secondary">
                   LOX / LH2 rocket fuel equivalent for Gaganyaan & Chandrayaan lunar ascent modules.
@@ -180,7 +199,7 @@ export default function ResourceReportModal({ isOpen, onClose, selectedRegion, c
                   <Droplets className="w-4 h-4 text-cyan" />
                 </div>
                 <div className="text-xl font-bold text-cyan my-1">
-                  1.69 × 10⁹ L
+                  {potableLiters}
                 </div>
                 <div className="text-[11px] text-secondary">
                   Sustains 4-astronaut lunar base life support for &gt; 100,000 operational years.
@@ -193,7 +212,7 @@ export default function ResourceReportModal({ isOpen, onClose, selectedRegion, c
                   <Check className="w-4 h-4 text-green" />
                 </div>
                 <div className="text-xl font-bold text-green my-1">
-                  $33.8 Billion
+                  {commercialBillion}
                 </div>
                 <div className="text-[11px] text-secondary">
                   Based on conservative Earth-to-Moon launch delivery cost ($20,000/kg avoided).

@@ -16,7 +16,8 @@ import {
   Sparkles,
   Mountain
 } from 'lucide-react';
-import { SUITABILITY_FACTORS, COMPOSITE_SCORE, ROVER_MISSION_DATA } from '../../data/missionData';
+import { SUITABILITY_FACTORS, COMPOSITE_SCORE, ROVER_MISSION_DATA, MAP_SCALE_KM_PER_PIXEL } from '../../data/missionData';
+import { routeDistanceKm, routeTimeHours, compositeScore } from '../../lib/calc';
 import LunarMap from '../LunarMap';
 
 export default function MissionPlannerScreen({ 
@@ -30,9 +31,28 @@ export default function MissionPlannerScreen({
   const [roverPlaybackIndex, setRoverPlaybackIndex] = useState(0);
 
   const waypoints = ROVER_MISSION_DATA.waypoints;
-  const factors = SUITABILITY_FACTORS;
+  const rawFactors = SUITABILITY_FACTORS;
   const composite = COMPOSITE_SCORE;
   const roverData = ROVER_MISSION_DATA;
+
+  // 1. Compute suitability contributions and composite score dynamically in code
+  const factors = rawFactors.map((f) => ({
+    ...f,
+    contribution: (f.score * f.weight) / 100,
+  }));
+  const computedCompositeScore = compositeScore(factors);
+
+  // 2. Derive route distance, time, and energy from waypoints using calc.js
+  const scale = roverData.kmPerPixel || MAP_SCALE_KM_PER_PIXEL || 0.0216;
+  const derivedDistanceKm = routeDistanceKm(waypoints, scale);
+  const derivedCruiseSpeed = roverData.cruiseSpeedKmh || 0.5;
+  const derivedTimeHours = routeTimeHours(derivedDistanceKm, derivedCruiseSpeed);
+  // Energy consumption: baseline is 64% at 2.84 km
+  const derivedEnergyPct = Math.round((derivedDistanceKm / 2.84) * 64);
+
+  const displayDistance = `${derivedDistanceKm.toFixed(2)} km`;
+  const displayTime = `${derivedTimeHours.toFixed(1)} h`;
+  const displayEnergy = `${derivedEnergyPct}%`;
 
   // Handle rover route traversal simulation playback
   useEffect(() => {
@@ -204,7 +224,7 @@ export default function MissionPlannerScreen({
                 COMPOSITE SUITABILITY — {composite.site}
               </div>
               <div className="text-2xl font-mono font-bold text-green mt-0.5">
-                {composite.score}
+                {computedCompositeScore.toFixed(1)}%
               </div>
             </div>
 
@@ -242,18 +262,18 @@ export default function MissionPlannerScreen({
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-4 font-mono text-xs">
             <div className="p-2.5 bg-[#090F17] border border-[#162538] rounded">
               <div className="text-dim text-[10px]">DISTANCE</div>
-              <div className="text-base font-bold text-primary">{roverData.distance}</div>
+              <div className="text-base font-bold text-primary">{displayDistance}</div>
             </div>
 
             <div className="p-2.5 bg-[#090F17] border border-[#162538] rounded">
               <div className="text-dim text-[10px]">ESTIMATED TIME</div>
-              <div className="text-base font-bold text-cyan">{roverData.time}</div>
+              <div className="text-base font-bold text-cyan">{displayTime}</div>
               <div className="text-[10px] text-dim">{roverData.avgSpeed}</div>
             </div>
 
             <div className="p-2.5 bg-[#090F17] border border-[#162538] rounded">
               <div className="text-dim text-[10px]">ENERGY BUDGET</div>
-              <div className="text-base font-bold text-green">{roverData.energyConsumption}</div>
+              <div className="text-base font-bold text-green">{displayEnergy}</div>
               <div className="text-[10px] text-dim">RTG + 840Wh Batt</div>
             </div>
 

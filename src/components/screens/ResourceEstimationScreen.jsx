@@ -14,6 +14,7 @@ import {
   Sliders
 } from 'lucide-react';
 import { RESOURCE_ESTIMATION } from '../../data/missionData';
+import { iceVolume, waterMass, uncertaintyRange } from '../../lib/calc';
 import ResourceReportModal from '../ResourceReportModal';
 
 export default function ResourceEstimationScreen({ 
@@ -31,20 +32,25 @@ export default function ResourceEstimationScreen({
   const [depthMax, setDepthMax] = useState(5.0); // 0-5m default
   const [iceVolFraction, setIceVolFraction] = useState(4.7); // 4.7% default
 
-  // Calculate dynamic outputs based on sliders
-  // When depthMax = 5 and iceVolFraction = 4.7, values match canonical values exactly!
-  const depthFactor = depthMax / 5.0;
-  const concFactor = iceVolFraction / 4.7;
-  const effectiveMultiplier = depthFactor * concFactor;
+  // Derive dynamic outputs using calc.js formulas
+  // Depth of 0.5m desiccated dry lag is excluded from the ice-bearing regolith stratum
+  const dryLagDepth = base.dryLagDepthM ?? 0.5;
+  const activeIceThickness = Math.max(0, depthMax - dryLagDepth);
+  const analysisAreaM2 = (base.analysisAreaKm2 ?? 8.70) * 1e6;
 
-  const currentVolumeNum = (1.84 * effectiveMultiplier).toFixed(2);
-  const currentMassNum = (1.69 * effectiveMultiplier).toFixed(2);
+  const currentVolume = iceVolume(analysisAreaM2, activeIceThickness, iceVolFraction);
+  const currentMass = waterMass(currentVolume, 920);
+  const currentVolRange = uncertaintyRange(currentVolume, 0.30);
+  const currentMassRange = uncertaintyRange(currentMass, 0.30);
 
-  const volMin = (1.29 * effectiveMultiplier).toFixed(2);
-  const volMax = (2.39 * effectiveMultiplier).toFixed(2);
+  const currentVolumeNum = (currentVolume / 1e6).toFixed(2);
+  const currentMassNum = (currentMass / 1e9).toFixed(2);
 
-  const massMin = (1.18 * effectiveMultiplier).toFixed(2);
-  const massMax = (2.20 * effectiveMultiplier).toFixed(2);
+  const volMin = (currentVolRange.min / 1e6).toFixed(2);
+  const volMax = (currentVolRange.max / 1e6).toFixed(2);
+
+  const massMin = (currentMassRange.min / 1e9).toFixed(2);
+  const massMax = (currentMassRange.max / 1e9).toFixed(2);
 
   const handleCalculate = () => {
     setIsCalculating(true);
@@ -60,6 +66,21 @@ export default function ResourceEstimationScreen({
   };
 
   const isBaseline = depthMax === 5.0 && iceVolFraction === 4.7;
+
+  const currentCalculationData = {
+    ...base,
+    depthRange: `0–${depthMax.toFixed(1)} m`,
+    depthRangeMax: depthMax,
+    iceConcentration: `${iceVolFraction.toFixed(1)}%`,
+    estimatedIceVolume: `${currentVolumeNum} × 10⁶ m³`,
+    estimatedIceVolumeValue: currentVolume,
+    volumeRangeMin: `${volMin} × 10⁶ m³`,
+    volumeRangeMax: `${volMax} × 10⁶ m³`,
+    waterEquivalentMass: `${currentMassNum} × 10⁹ kg`,
+    waterEquivalentMassValue: currentMass,
+    massRangeMin: `${massMin} × 10⁹ kg`,
+    massRangeMax: `${massMax} × 10⁹ kg`,
+  };
 
   return (
     <div className="w-full h-full flex flex-col overflow-y-auto p-4 lg:p-6 bg-[#0A0E14] select-none">
@@ -143,14 +164,14 @@ export default function ResourceEstimationScreen({
               </div>
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-mono font-bold text-primary">
-                  {isBaseline ? base.depthRange : `0–${depthMax} m`}
+                  0–{depthMax.toFixed(1)} m
                 </span>
                 <span className="text-xs font-mono text-secondary">
                   below lunar surface
                 </span>
               </div>
               <div className="text-[11px] text-secondary mt-2">
-                Excludes top 0.5m solar-sublimated desiccated lag.
+                Excludes top {dryLagDepth.toFixed(1)}m desiccated dry lag ({activeIceThickness.toFixed(1)}m active stratum).
               </div>
             </div>
 
@@ -163,12 +184,12 @@ export default function ResourceEstimationScreen({
                 </span>
               </div>
               <div className="text-2xl lg:text-3xl font-mono font-bold text-cyan">
-                {isBaseline ? base.estimatedIceVolume : `${currentVolumeNum} × 10⁶ m³`}
+                {currentVolumeNum} × 10⁶ m³
               </div>
               <div className="text-xs font-mono text-amber mt-2 flex items-center gap-1.5">
                 <span>Uncertainty (±30%):</span>
                 <strong className="text-primary font-bold">
-                  {isBaseline ? `${base.volumeRangeMin} – ${base.volumeRangeMax}` : `${volMin}×10⁶ – ${volMax}×10⁶ m³`}
+                  {volMin}×10⁶ – {volMax}×10⁶ m³
                 </strong>
               </div>
             </div>
@@ -182,12 +203,12 @@ export default function ResourceEstimationScreen({
                 </span>
               </div>
               <div className="text-2xl lg:text-3xl font-mono font-bold text-green">
-                {isBaseline ? base.waterEquivalentMass : `${currentMassNum} × 10⁹ kg`}
+                {currentMassNum} × 10⁹ kg
               </div>
               <div className="text-xs font-mono text-amber mt-2 flex items-center gap-1.5">
                 <span>Mass Range (±30%):</span>
                 <strong className="text-primary font-bold">
-                  {isBaseline ? `${base.massRangeMin} – ${base.massRangeMax}` : `${massMin}×10⁹ – ${massMax}×10⁹ kg`}
+                  {massMin}×10⁹ – {massMax}×10⁹ kg
                 </strong>
               </div>
             </div>
@@ -212,7 +233,7 @@ export default function ResourceEstimationScreen({
               <div className="flex items-center justify-between text-secondary">
                 <span>Direct Mathematical Product:</span>
                 <span className="text-green font-bold">
-                  1.84 × 10⁶ m³ × 920 kg/m³ = 1.6928 × 10⁹ kg
+                  {currentVolumeNum} × 10⁶ m³ × 920 kg/m³ = {(currentMass / 1e9).toFixed(4)} × 10⁹ kg
                 </span>
               </div>
               <div className="flex items-center justify-between text-dim text-[11px] pt-1 border-t border-[#142335]">
@@ -245,7 +266,9 @@ export default function ResourceEstimationScreen({
             <div className="flex flex-col gap-4">
               <div>
                 <div className="flex items-center justify-between text-xs font-mono mb-1.5">
-                  <span className="text-secondary">Drill Exploration Depth:</span>
+                  <span className="text-secondary">
+                    Drill Exploration Depth (0.5m dry lag excluded &rarr; {activeIceThickness.toFixed(1)}m ice thickness):
+                  </span>
                   <span className="text-cyan font-bold">{depthMax.toFixed(1)} m</span>
                 </div>
                 <input
@@ -296,7 +319,7 @@ export default function ResourceEstimationScreen({
               <div className="p-3 rounded bg-gradient-to-r from-[#2A241C] to-[#1C1814] border border-[#483B2E] text-secondary relative">
                 <div className="flex items-center justify-between font-bold text-amber">
                   <span>LAYER 01: DESICCATED DRY LAG</span>
-                  <span>0.0 – 0.5 m</span>
+                  <span>0.0 – {dryLagDepth.toFixed(1)} m</span>
                 </div>
                 <div className="text-[11px] text-[#A69788] font-sans mt-0.5">
                   Solar wind sputtered volatile-depleted surface regolith layer (0.0% ice).
@@ -310,13 +333,13 @@ export default function ResourceEstimationScreen({
                     <Droplets className="w-4 h-4 text-cyan animate-pulse" />
                     LAYER 02: ICE-CEMENTED VOLATILE HORIZON
                   </span>
-                  <span className="text-base text-green">0.5 – 5.0 m</span>
+                  <span className="text-base text-green">{dryLagDepth.toFixed(1)} – {depthMax.toFixed(1)} m</span>
                 </div>
                 <div className="text-[11px] text-[#8ACADE] font-sans mt-1">
-                  Primary exploration deposit. Pore ice interspersed in anorthositic grain matrix (<strong className="text-cyan">{isBaseline ? '4.7%' : `${iceVolFraction}%`} volume concentration</strong>).
+                  Primary exploration deposit. Pore ice interspersed in anorthositic grain matrix (<strong className="text-cyan">{iceVolFraction.toFixed(1)}% volume concentration</strong> across {activeIceThickness.toFixed(1)}m active stratum).
                 </div>
                 <div className="mt-2 text-[10px] font-mono text-green flex items-center justify-between pt-2 border-t border-[#16384E]">
-                  <span>RECOVERABLE MASS: {isBaseline ? base.waterEquivalentMass : `${currentMassNum}×10⁹ kg`}</span>
+                  <span>RECOVERABLE MASS: {currentMassNum}×10⁹ kg</span>
                   <span>TEMP: ~38K</span>
                 </div>
               </div>
@@ -325,7 +348,7 @@ export default function ResourceEstimationScreen({
               <div className="p-3 rounded bg-gradient-to-r from-[#141B26] to-[#0D121B] border border-[#202E42] text-secondary">
                 <div className="flex items-center justify-between font-bold text-dim">
                   <span>LAYER 03: FRACTURED MEGAREGOLITH / BEDROCK</span>
-                  <span>&gt; 5.0 m</span>
+                  <span>&gt; {depthMax.toFixed(1)} m</span>
                 </div>
                 <div className="text-[11px] text-dim font-sans mt-0.5">
                   Dense impact melt sheet and fractured anorthosite bedrock basement.
@@ -369,7 +392,7 @@ export default function ResourceEstimationScreen({
         isOpen={isReportOpen}
         onClose={() => setIsReportOpen(false)}
         selectedRegion={selectedRegion}
-        calculationData={base}
+        calculationData={currentCalculationData}
       />
     </div>
   );
