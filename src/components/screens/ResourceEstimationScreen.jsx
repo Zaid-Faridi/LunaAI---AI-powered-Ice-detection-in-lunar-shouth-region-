@@ -83,12 +83,12 @@ export default function ResourceEstimationScreen({
   };
 
   return (
-    <div className="w-full h-full flex flex-col overflow-y-auto p-4 lg:p-6 bg-[#0A0E14] select-none">
+    <div className="w-full h-full flex flex-col overflow-y-auto p-4 lg:p-6 bg-[#0A0E14]">
       {/* Top Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#1B293C] mb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="telemetry-tag telemetry-tag-cyan font-mono text-[10px]">
+            <span className="telemetry-tag telemetry-tag-cyan font-mono text-[11px]">
               SCREEN 03 // QUANTITATIVE ESTIMATION
             </span>
             <span className="text-dim font-mono text-xs">|</span>
@@ -139,7 +139,7 @@ export default function ResourceEstimationScreen({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* 1. Ice Concentration */}
             <div className="mission-panel p-4 bg-[#0E1624]">
-              <div className="text-[10px] font-mono text-dim tracking-wider uppercase mb-1 flex items-center justify-between">
+              <div className="text-[11px] font-mono text-dim tracking-wider uppercase mb-1 flex items-center justify-between">
                 <span>ICE CONCENTRATION</span>
                 <span className="text-cyan font-mono">RADAR VOLUMETRIC</span>
               </div>
@@ -158,7 +158,7 @@ export default function ResourceEstimationScreen({
 
             {/* 2. Depth Range */}
             <div className="mission-panel p-4 bg-[#0E1624]">
-              <div className="text-[10px] font-mono text-dim tracking-wider uppercase mb-1 flex items-center justify-between">
+              <div className="text-[11px] font-mono text-dim tracking-wider uppercase mb-1 flex items-center justify-between">
                 <span>DEPTH RANGE</span>
                 <span className="text-green font-mono">STRATUM 1</span>
               </div>
@@ -177,9 +177,9 @@ export default function ResourceEstimationScreen({
 
             {/* 3. Estimated Ice Volume */}
             <div className="mission-panel p-4 bg-[#0E1624] border-[rgba(0,217,255,0.3)]">
-              <div className="text-[10px] font-mono text-dim tracking-wider uppercase mb-1 flex items-center justify-between">
+              <div className="text-[11px] font-mono text-dim tracking-wider uppercase mb-1 flex items-center justify-between">
                 <span>ESTIMATED ICE VOLUME</span>
-                <span className="telemetry-tag telemetry-tag-amber text-[9px]">
+                <span className="telemetry-tag telemetry-tag-amber text-[11px]">
                   {base.volumeUncertainty} BAND
                 </span>
               </div>
@@ -196,9 +196,9 @@ export default function ResourceEstimationScreen({
 
             {/* 4. Water-Equivalent Mass */}
             <div className="mission-panel p-4 bg-[#0E1624] border-[rgba(0,230,118,0.3)]">
-              <div className="text-[10px] font-mono text-dim tracking-wider uppercase mb-1 flex items-center justify-between">
+              <div className="text-[11px] font-mono text-dim tracking-wider uppercase mb-1 flex items-center justify-between">
                 <span>WATER-EQUIVALENT MASS</span>
-                <span className="telemetry-tag telemetry-tag-green text-[9px]">
+                <span className="telemetry-tag telemetry-tag-green text-[11px]">
                   ISRU YIELD
                 </span>
               </div>
@@ -310,7 +310,7 @@ export default function ResourceEstimationScreen({
                   REGOLITH STRATIGRAPHY & ICE BURIAL MODEL
                 </h3>
               </div>
-              <span className="text-[10px] font-mono text-secondary">0–10m PROFILE</span>
+              <span className="text-[11px] font-mono text-secondary">0–10m PROFILE</span>
             </div>
 
             {/* Visual Cross Section Diagram */}
@@ -338,7 +338,7 @@ export default function ResourceEstimationScreen({
                 <div className="text-[11px] text-[#8ACADE] font-sans mt-1">
                   Primary exploration deposit. Pore ice interspersed in anorthositic grain matrix (<strong className="text-cyan">{iceVolFraction.toFixed(1)}% volume concentration</strong> across {activeIceThickness.toFixed(1)}m active stratum).
                 </div>
-                <div className="mt-2 text-[10px] font-mono text-green flex items-center justify-between pt-2 border-t border-[#16384E]">
+                <div className="mt-2 text-[11px] font-mono text-green flex items-center justify-between pt-2 border-t border-[#16384E]">
                   <span>RECOVERABLE MASS: {currentMassNum}×10⁹ kg</span>
                   <span>TEMP: ~38K</span>
                 </div>

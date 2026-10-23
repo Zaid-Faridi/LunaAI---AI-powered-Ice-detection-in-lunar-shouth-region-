@@ -26,7 +26,7 @@ export default function MapGrid() {
       </g>
 
       {/* Degree Marks on Rings */}
-      <g fill="rgba(0, 217, 255, 0.45)" fontSize="9" fontFamily="var(--font-mono)">
+      <g fill="rgba(0, 217, 255, 0.45)" fontSize="11" fontFamily="var(--font-mono)">
         <text x="408" y="75" textAnchor="start">87.0° S</text>
         <text x="408" y="190" textAnchor="start">88.0° S</text>
         <text x="408" y="305" textAnchor="start">89.0° S</text>
@@ -43,7 +43,7 @@ export default function MapGrid() {
         <circle cx="0" cy="0" r="1.5" fill="#FFB020" />
         <line x1="-8" y1="0" x2="8" y2="0" stroke="#FFB020" strokeWidth="0.8" opacity="0.6" />
         <line x1="0" y1="-8" x2="0" y2="8" stroke="#FFB020" strokeWidth="0.8" opacity="0.6" />
-        <text x="0" y="14" fill="#FFB020" fontSize="7" fontFamily="var(--font-mono)" textAnchor="middle">
+        <text x="0" y="15" fill="#FFB020" fontSize="11" fontFamily="var(--font-mono)" textAnchor="middle">
           LUNAR S-POLE [90.00° S]
         </text>
       </g>

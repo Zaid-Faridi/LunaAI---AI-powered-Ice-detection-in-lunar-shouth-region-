@@ -53,9 +53,9 @@ export default function RoverRouteLayer({ waypoints = [], roverPlaybackIndex = n
             {/* WP label */}
             <text
               x="7"
-              y="3"
+              y="4"
               fill={isTargetSample ? "#00E676" : "#E6EDF3"}
-              fontSize="8"
+              fontSize="11"
               fontFamily="var(--font-mono)"
               fontWeight="bold"
             >
@@ -74,7 +74,7 @@ export default function RoverRouteLayer({ waypoints = [], roverPlaybackIndex = n
             x="0"
             y="-10"
             fill="#00D9FF"
-            fontSize="8"
+            fontSize="11"
             fontFamily="var(--font-mono)"
             textAnchor="middle"
             fontWeight="bold"

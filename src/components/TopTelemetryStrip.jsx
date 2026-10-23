@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, Clock, Globe, Radio, ShieldCheck, Sparkles, Satellite } from 'lucide-react';
 
+export const MISSION_EPOCH = new Date("2026-10-12T00:00:00Z");
+
 export default function TopTelemetryStrip({ selectedRegion, pipelineState }) {
   const [utcTime, setUtcTime] = useState('');
   const [istTime, setIstTime] = useState('');
-  const [missionElapsedSecs, setMissionElapsedSecs] = useState(1024320); // ~11 days in MET
+  const [nowMs, setNowMs] = useState(Date.now());
 
   useEffect(() => {
     const updateTimes = () => {
       const now = new Date();
+      setNowMs(now.getTime());
       setUtcTime(now.toUTCString().replace('GMT', 'UTC'));
       
       // IST time (UTC + 5:30)
@@ -23,13 +26,14 @@ export default function TopTelemetryStrip({ selectedRegion, pipelineState }) {
         second: '2-digit'
       };
       setIstTime(new Intl.DateTimeFormat('en-IN', istOptions).format(now) + ' IST');
-      setMissionElapsedSecs(prev => prev + 1);
     };
 
     updateTimes();
     const timer = setInterval(updateTimes, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const missionElapsedSecs = Math.max(0, Math.floor((nowMs - MISSION_EPOCH.getTime()) / 1000));
 
   const formatMET = (totalSecs) => {
     const days = Math.floor(totalSecs / 86400);
@@ -40,7 +44,7 @@ export default function TopTelemetryStrip({ selectedRegion, pipelineState }) {
   };
 
   return (
-    <header className="w-full bg-[#0E1520] border-b border-[#1B293C] px-4 py-2 flex items-center justify-between z-40 text-xs font-mono select-none">
+    <header className="w-full bg-[#0E1520] border-b border-[#1B293C] px-4 py-2 flex items-center justify-between z-40 text-xs font-mono">
       {/* Left: ISRO Branding & System Identity */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 pr-3 border-r border-[#1F2F44]">
@@ -55,7 +59,7 @@ export default function TopTelemetryStrip({ selectedRegion, pipelineState }) {
               <span className="text-dim">|</span>
               <span className="text-cyan font-bold text-xs">SAC & IIRS</span>
             </div>
-            <div className="text-[10px] text-secondary tracking-wider">
+            <div className="text-[11px] text-secondary tracking-wider">
               LUNAR ICE INTELLIGENCE SYSTEM
             </div>
           </div>
@@ -65,7 +69,7 @@ export default function TopTelemetryStrip({ selectedRegion, pipelineState }) {
         <div className="flex items-center gap-4 text-secondary">
           <div className="flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5 text-cyan" />
-            <span className="text-dim">MET:</span>
+            <span className="text-dim">SIMULATED MET:</span>
             <span className="text-cyan font-semibold">{formatMET(missionElapsedSecs)}</span>
           </div>
           <div className="hidden lg:flex items-center gap-1.5">
@@ -81,7 +85,7 @@ export default function TopTelemetryStrip({ selectedRegion, pipelineState }) {
 
       {/* Center: Persistent Active Region Telemetry */}
       <div className="flex items-center gap-2 bg-[#090F17] px-3 py-1 rounded border border-[#1A283B]">
-        <span className="text-dim text-[10px]">ACTIVE REGION:</span>
+        <span className="text-dim text-[11px]">ACTIVE REGION:</span>
         <span className="text-green font-bold tracking-wider">{selectedRegion.shortName}</span>
         <span className="text-dim">|</span>
         <span className="text-cyan">{selectedRegion.latitude}</span>

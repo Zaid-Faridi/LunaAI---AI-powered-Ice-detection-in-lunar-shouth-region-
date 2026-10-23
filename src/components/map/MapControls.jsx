@@ -9,7 +9,8 @@ export default function MapControls({
 }) {
   const layerButtons = [
     { id: 'terrain', label: 'DEM', activeClass: 'bg-[rgba(0,217,255,0.15)] text-cyan border border-[rgba(0,217,255,0.4)]' },
-    { id: 'illumination', label: 'PSR/SOLAR', activeClass: 'bg-[rgba(255,176,32,0.15)] text-amber border border-[rgba(255,176,32,0.4)]' },
+    { id: 'psr', label: 'PSR', activeClass: 'bg-[rgba(0,217,255,0.15)] text-cyan border border-[rgba(0,217,255,0.4)]' },
+    { id: 'illumination', label: 'SOLAR', activeClass: 'bg-[rgba(255,176,32,0.15)] text-amber border border-[rgba(255,176,32,0.4)]' },
     { id: 'divinerThermal', label: 'DIVINER 40K', activeClass: 'bg-[rgba(0,180,255,0.2)] text-[#66D9FF] border border-[rgba(0,180,255,0.4)]' },
     { id: 'radarCpr', label: 'DFSAR CPR', activeClass: 'bg-[rgba(0,230,118,0.15)] text-green border border-[rgba(0,230,118,0.4)]' },
   ];
@@ -36,21 +37,24 @@ export default function MapControls({
           <button
             onClick={() => zoomBy(1.25)}
             title="Zoom In (+)"
-            className="p-1.5 text-secondary hover:text-cyan hover:bg-[#152335] rounded transition-colors"
+            aria-label="Zoom In"
+            className="p-1.5 text-secondary hover:text-cyan hover:bg-[#152335] rounded transition-colors focus-visible:ring-2 focus-visible:ring-cyan outline-none"
           >
             <ZoomIn className="w-4 h-4" />
           </button>
           <button
             onClick={() => zoomBy(0.8)}
             title="Zoom Out (-)"
-            className="p-1.5 text-secondary hover:text-cyan hover:bg-[#152335] rounded transition-colors"
+            aria-label="Zoom Out"
+            className="p-1.5 text-secondary hover:text-cyan hover:bg-[#152335] rounded transition-colors focus-visible:ring-2 focus-visible:ring-cyan outline-none"
           >
             <ZoomOut className="w-4 h-4" />
           </button>
           <button
             onClick={onResetView}
             title="Reset View"
-            className="p-1.5 text-secondary hover:text-cyan hover:bg-[#152335] rounded transition-colors"
+            aria-label="Reset Map View"
+            className="p-1.5 text-secondary hover:text-cyan hover:bg-[#152335] rounded transition-colors focus-visible:ring-2 focus-visible:ring-cyan outline-none"
           >
             <RotateCcw className="w-4 h-4" />
           </button>
@@ -66,7 +70,8 @@ export default function MapControls({
             <button
               key={id}
               onClick={() => onToggleLayer && onToggleLayer(id)}
-              className={`px-2 py-0.5 rounded transition-all ${
+              aria-pressed={Boolean(activeLayers[id])}
+              className={`px-2 py-0.5 rounded transition-all focus-visible:ring-2 focus-visible:ring-cyan outline-none ${
                 activeLayers[id] ? activeClass : 'text-dim hover:text-secondary'
               }`}
             >
