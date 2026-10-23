@@ -8,8 +8,9 @@ import {
   routeTimeHours,
   compositeScore,
 } from '../lib/calc.js';
+import { latLonToXY } from '../lib/geo.js';
 
-export const CANDIDATE_REGIONS = [
+const RAW_CANDIDATE_REGIONS = [
   {
     id: "shackleton-a",
     name: "Shackleton Crater — Candidate Region A",
@@ -34,8 +35,6 @@ export const CANDIDATE_REGIONS = [
     status: "PRIMARY TARGET",
     recommendedLandingZone: true,
     landingZoneName: "Connecting Ridge Site A",
-    mapX: 400, // center of stereographic projection
-    mapY: 410,
     radius: 45
   },
   {
@@ -62,8 +61,6 @@ export const CANDIDATE_REGIONS = [
     status: "SECONDARY TARGET",
     recommendedLandingZone: false,
     landingZoneName: "Faustini Rim Plateau",
-    mapX: 520,
-    mapY: 340,
     radius: 38
   },
   {
@@ -90,8 +87,6 @@ export const CANDIDATE_REGIONS = [
     status: "CONTINGENCY TARGET",
     recommendedLandingZone: false,
     landingZoneName: "Shoemaker Northeast Bench",
-    mapX: 475,
-    mapY: 275,
     radius: 42
   },
   {
@@ -118,11 +113,18 @@ export const CANDIDATE_REGIONS = [
     status: "CONTINGENCY TARGET",
     recommendedLandingZone: false,
     landingZoneName: "Haworth Ridge Terrace",
-    mapX: 300,
-    mapY: 370,
     radius: 40
   }
 ];
+
+export const CANDIDATE_REGIONS = RAW_CANDIDATE_REGIONS.map((region) => {
+  const { x, y } = latLonToXY(region.latNum, region.lonNum);
+  return {
+    ...region,
+    mapX: Number(x.toFixed(2)),
+    mapY: Number(y.toFixed(2)),
+  };
+});
 
 // Ice Detection Ground Truth & Pipeline Telemetry
 export const ICE_DETECTION_RESULTS = {
@@ -150,9 +152,9 @@ export const ICE_DETECTION_RESULTS = {
 };
 
 // Map scale constant for tactical rover coordinates (km per pixel)
-// Waypoint sequence total Euclidean path = 131.4887 px.
-// 131.4887 px * 0.02160033 km/px = 2.84 km
-export const MAP_SCALE_KM_PER_PIXEL = 0.0216;
+// Waypoint sequence total Euclidean path = 26.8406 px computed via latLonToXY projection.
+// 26.8406 px * (2.84 / 26.8406) km/px = 2.84 km
+export const MAP_SCALE_KM_PER_PIXEL = 2.84 / 26.8406;
 
 // Resource Estimation Telemetry
 // Baseline calculation:
@@ -231,16 +233,25 @@ export const COMPOSITE_SCORE = {
 };
 
 // Rover Trajectory Waypoints & Telemetry
-const RAW_WAYPOINTS = [
-  { id: 1, name: "WP-01: Lander Touchdown", x: 375, y: 360, lat: "89.78° S", lon: "0.50° W", elev: "-3.20 km", slope: "2.1°", iceProb: "12%", phase: "DEPLOYMENT" },
-  { id: 2, name: "WP-02: Ridge Ingress Crest", x: 382, y: 375, lat: "89.81° S", lon: "0.35° W", elev: "-3.45 km", slope: "4.8°", iceProb: "24%", phase: "INGRESS" },
-  { id: 3, name: "WP-03: Shadow Transition Gate", x: 390, y: 390, lat: "89.85° S", lon: "0.15° W", elev: "-3.75 km", slope: "6.2°", iceProb: "58%", phase: "PSR ENTRY" },
-  { id: 4, name: "WP-04: Ice Deposit Margin", x: 396, y: 405, lat: "89.88° S", lon: "0.05° W", elev: "-3.95 km", slope: "3.5°", iceProb: "84%", phase: "TARGET SURVEY" },
-  { id: 5, name: "WP-05: High-CPR Core Zone", x: 402, y: 415, lat: "89.90° S", lon: "0.00° E", elev: "-4.12 km", slope: "1.8°", iceProb: "87.4%", phase: "PRIMARY SAMPLING" },
-  { id: 6, name: "WP-06: Secondary Trench Site", x: 412, y: 410, lat: "89.89° S", lon: "0.20° E", elev: "-4.05 km", slope: "2.4°", iceProb: "81%", phase: "TRENCH EXTRACTION" },
-  { id: 7, name: "WP-07: Egress Ramp Incline", x: 400, y: 380, lat: "89.83° S", lon: "0.10° E", elev: "-3.50 km", slope: "5.1°", iceProb: "36%", phase: "EGRESS" },
-  { id: 8, name: "WP-08: Comm Relay Haven (Return)", x: 378, y: 365, lat: "89.79° S", lon: "0.40° W", elev: "-3.22 km", slope: "1.9°", iceProb: "15%", phase: "SAMPLE TRANSIT" }
+const RAW_WAYPOINT_DEFS = [
+  { id: 1, name: "WP-01: Lander Touchdown", lat: "89.78° S", lon: "0.50° W", latNum: -89.78, lonNum: -0.50, elev: "-3.20 km", slope: "2.1°", iceProb: "12%", phase: "DEPLOYMENT" },
+  { id: 2, name: "WP-02: Ridge Ingress Crest", lat: "89.81° S", lon: "0.35° W", latNum: -89.81, lonNum: -0.35, elev: "-3.45 km", slope: "4.8°", iceProb: "24%", phase: "INGRESS" },
+  { id: 3, name: "WP-03: Shadow Transition Gate", lat: "89.85° S", lon: "0.15° W", latNum: -89.85, lonNum: -0.15, elev: "-3.75 km", slope: "6.2°", iceProb: "58%", phase: "PSR ENTRY" },
+  { id: 4, name: "WP-04: Ice Deposit Margin", lat: "89.88° S", lon: "0.05° W", latNum: -89.88, lonNum: -0.05, elev: "-3.95 km", slope: "3.5°", iceProb: "84%", phase: "TARGET SURVEY" },
+  { id: 5, name: "WP-05: High-CPR Core Zone", lat: "89.90° S", lon: "0.00° E", latNum: -89.90, lonNum: 0.00, elev: "-4.12 km", slope: "1.8°", iceProb: "87.4%", phase: "PRIMARY SAMPLING" },
+  { id: 6, name: "WP-06: Secondary Trench Site", lat: "89.89° S", lon: "0.20° E", latNum: -89.89, lonNum: 0.20, elev: "-4.05 km", slope: "2.4°", iceProb: "81%", phase: "TRENCH EXTRACTION" },
+  { id: 7, name: "WP-07: Egress Ramp Incline", lat: "89.83° S", lon: "0.10° E", latNum: -89.83, lonNum: 0.10, elev: "-3.50 km", slope: "5.1°", iceProb: "36%", phase: "EGRESS" },
+  { id: 8, name: "WP-08: Comm Relay Haven (Return)", lat: "89.79° S", lon: "0.40° W", latNum: -89.79, lonNum: -0.40, elev: "-3.22 km", slope: "1.9°", iceProb: "15%", phase: "SAMPLE TRANSIT" }
 ];
+
+const RAW_WAYPOINTS = RAW_WAYPOINT_DEFS.map((wp) => {
+  const { x, y } = latLonToXY(wp.latNum, wp.lonNum);
+  return {
+    ...wp,
+    x: Number(x.toFixed(2)),
+    y: Number(y.toFixed(2)),
+  };
+});
 
 const derivedRouteDistanceKm = routeDistanceKm(RAW_WAYPOINTS, MAP_SCALE_KM_PER_PIXEL);
 const cruiseSpeedKmh = 0.5;
