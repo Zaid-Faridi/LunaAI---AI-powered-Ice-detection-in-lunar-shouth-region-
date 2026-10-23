@@ -55,10 +55,10 @@ export default function LandingZoneLayer({ waypoints = ROVER_MISSION_DATA.waypoi
       />
       <text
         x={lzX}
-        y={lzY - 25}
+        y={lzY - 24}
         textAnchor="middle"
         fill="#00E676"
-        fontSize="9"
+        fontSize="11"
         fontFamily="var(--font-mono)"
         fontWeight="bold"
       >

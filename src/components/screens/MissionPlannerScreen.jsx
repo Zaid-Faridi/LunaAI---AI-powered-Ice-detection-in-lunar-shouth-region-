@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useReducer } from 'react';
 import { 
   MapPin, 
   Navigation, 
@@ -20,6 +20,49 @@ import { SUITABILITY_FACTORS, COMPOSITE_SCORE, ROVER_MISSION_DATA, MAP_SCALE_KM_
 import { routeDistanceKm, routeTimeHours, compositeScore } from '../../lib/calc';
 import LunarMap from '../LunarMap';
 
+function roverPlaybackReducer(state, action) {
+  switch (action.type) {
+    case 'START':
+      return {
+        ...state,
+        isPlaying: true,
+        index: state.index >= action.maxIndex ? 0 : state.index,
+      };
+    case 'PAUSE':
+      return {
+        ...state,
+        isPlaying: false,
+      };
+    case 'TOGGLE':
+      if (state.isPlaying) {
+        return { ...state, isPlaying: false };
+      }
+      return {
+        ...state,
+        isPlaying: true,
+        index: state.index >= action.maxIndex ? 0 : state.index,
+      };
+    case 'STEP':
+      if (state.index >= action.maxIndex) {
+        return {
+          ...state,
+          isPlaying: false,
+        };
+      }
+      return {
+        ...state,
+        index: state.index + 1,
+      };
+    case 'RESET':
+      return {
+        isPlaying: false,
+        index: 0,
+      };
+    default:
+      return state;
+  }
+}
+
 export default function MissionPlannerScreen({ 
   selectedRegion, 
   onSelectRegion,
@@ -27,10 +70,13 @@ export default function MissionPlannerScreen({
   onToggleLayer
 }) {
   const [routePlanned, setRoutePlanned] = useState(true); // default true for instant richness
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [roverPlaybackIndex, setRoverPlaybackIndex] = useState(0);
+  const [playback, dispatchPlayback] = useReducer(roverPlaybackReducer, {
+    isPlaying: false,
+    index: 0,
+  });
 
   const waypoints = ROVER_MISSION_DATA.waypoints;
+  const maxWaypointIndex = waypoints.length - 1;
   const rawFactors = SUITABILITY_FACTORS;
   const composite = COMPOSITE_SCORE;
   const roverData = ROVER_MISSION_DATA;
@@ -54,33 +100,26 @@ export default function MissionPlannerScreen({
   const displayTime = `${derivedTimeHours.toFixed(1)} h`;
   const displayEnergy = `${derivedEnergyPct}%`;
 
-  // Handle rover route traversal simulation playback
+  // Advance playback cleanly with timer and dispatch without nested setState side effects
   useEffect(() => {
-    let interval = null;
-    if (isSimulating) {
-      interval = setInterval(() => {
-        setRoverPlaybackIndex((prev) => {
-          if (prev >= waypoints.length - 1) {
-            setIsSimulating(false);
-            return 0;
-          }
-          return prev + 1;
-        });
-      }, 1200);
-    }
+    if (!playback.isPlaying) return;
+
+    const interval = setInterval(() => {
+      dispatchPlayback({ type: 'STEP', maxIndex: maxWaypointIndex });
+    }, 1200);
+
     return () => clearInterval(interval);
-  }, [isSimulating, waypoints.length]);
+  }, [playback.isPlaying, maxWaypointIndex]);
 
   const handlePlanRoute = () => {
     setRoutePlanned(true);
-    setRoverPlaybackIndex(0);
-    setIsSimulating(true);
+    // Note: Plan route only displays the route; a separate Play button initiates playback
   };
 
-  const currentWp = waypoints[roverPlaybackIndex] || waypoints[0];
+  const currentWp = waypoints[playback.index] || waypoints[0];
 
   return (
-    <div className="w-full h-full flex flex-col lg:flex-row relative overflow-hidden bg-[#0A0E14] select-none">
+    <div className="w-full h-full flex flex-col lg:flex-row relative overflow-hidden bg-[#0A0E14]">
       {/* Left: Interactive Tactical Polar Map with A* Route & Landing Ellipse (60% width on large screens) */}
       <div className="flex-1 h-[50%] lg:h-full relative min-w-0 border-b lg:border-b-0 lg:border-r border-[#1B293C]">
         <LunarMap
@@ -88,7 +127,7 @@ export default function MissionPlannerScreen({
           onSelectRegion={onSelectRegion}
           activeScreen="mission"
           showRoverRoute={routePlanned}
-          roverPlaybackIndex={isSimulating ? roverPlaybackIndex : null}
+          roverPlaybackIndex={routePlanned ? playback.index : null}
           activeLayers={activeLayers}
           onToggleLayer={onToggleLayer}
         />
@@ -97,12 +136,12 @@ export default function MissionPlannerScreen({
         {routePlanned && (
           <div className="absolute top-16 left-3 z-30 mission-panel p-3 max-w-xs bg-[#0A0F17]/95 border-cyan font-mono text-xs shadow-lg">
             <div className="flex items-center justify-between pb-1.5 border-b border-[#1A2A3E] mb-2">
-              <span className="text-[10px] text-cyan font-bold uppercase tracking-wider flex items-center gap-1.5">
+              <span className="text-[11px] text-cyan font-bold uppercase tracking-wider flex items-center gap-1.5">
                 <Route className="w-3.5 h-3.5 text-cyan" />
                 A* TRAVERSAL TELEMETRY
               </span>
-              <span className="telemetry-tag telemetry-tag-green text-[9px]">
-                WP 0{roverPlaybackIndex + 1}/08
+              <span className="telemetry-tag telemetry-tag-green text-[11px]">
+                WP 0{playback.index + 1}/08
               </span>
             </div>
 
@@ -127,30 +166,29 @@ export default function MissionPlannerScreen({
 
             <div className="flex items-center gap-2 mt-3 pt-2 border-t border-[#18283C]">
               <button
-                onClick={() => setIsSimulating(!isSimulating)}
-                className="btn-mission py-1.5 px-3 text-[10px] flex items-center gap-1 flex-1"
+                onClick={() => dispatchPlayback({ type: 'TOGGLE', maxIndex: maxWaypointIndex })}
+                className="btn-mission py-1.5 px-3 text-[11px] flex items-center gap-1 flex-1"
+                aria-label={playback.isPlaying ? 'Pause rover simulation' : 'Start rover simulation'}
               >
-                {isSimulating ? (
+                {playback.isPlaying ? (
                   <>
-                    <Pause className="w-3 h-3" />
+                    <Pause className="w-3.5 h-3.5" />
                     <span>PAUSE SIM</span>
                   </>
                 ) : (
                   <>
-                    <Play className="w-3 h-3 fill-cyan" />
-                    <span>{roverPlaybackIndex > 0 ? 'RESUME' : 'PLAY SIMULATION'}</span>
+                    <Play className="w-3.5 h-3.5 fill-cyan" />
+                    <span>{playback.index > 0 ? (playback.index >= maxWaypointIndex ? 'REPLAY' : 'RESUME') : 'PLAY SIMULATION'}</span>
                   </>
                 )}
               </button>
               <button
-                onClick={() => {
-                  setIsSimulating(false);
-                  setRoverPlaybackIndex(0);
-                }}
+                onClick={() => dispatchPlayback({ type: 'RESET' })}
                 title="Reset Rover to Lander"
+                aria-label="Reset Rover to Lander"
                 className="p-1.5 bg-[#121E2C] border border-[#23354C] rounded text-secondary hover:text-cyan"
               >
-                <RotateCcw className="w-3 h-3" />
+                <RotateCcw className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
@@ -163,7 +201,7 @@ export default function MissionPlannerScreen({
         <div className="flex items-center justify-between pb-3 border-b border-[#1B293C] mb-4">
           <div>
             <div className="flex items-center gap-2 mb-0.5">
-              <span className="telemetry-tag telemetry-tag-cyan text-[10px]">
+              <span className="telemetry-tag telemetry-tag-cyan text-[11px]">
                 SCREEN 04 // FLIGHT PLANNING
               </span>
               <span className="text-dim font-mono text-xs">|</span>
@@ -184,7 +222,7 @@ export default function MissionPlannerScreen({
                 LANDING SITE SUITABILITY MODEL (WEIGHTED)
               </h3>
             </div>
-            <span className="text-[10px] font-mono text-secondary">MULTI-CRITERIA EVAL</span>
+            <span className="text-[11px] font-mono text-secondary">MULTI-CRITERIA EVAL</span>
           </div>
 
           <table className="mission-table mb-3">
@@ -201,7 +239,7 @@ export default function MissionPlannerScreen({
                 <tr key={item.factor}>
                   <td className="font-semibold text-primary">
                     <div>{item.factor}</div>
-                    <div className="text-[10px] text-dim font-normal font-sans">{item.desc}</div>
+                    <div className="text-[11px] text-dim font-normal font-sans">{item.desc}</div>
                   </td>
                   <td className="text-right font-mono font-bold text-cyan text-sm">
                     {item.score}%
@@ -220,7 +258,7 @@ export default function MissionPlannerScreen({
           {/* Composite Score Banner */}
           <div className="p-3 rounded bg-[#09111C] border border-green flex items-center justify-between">
             <div>
-              <div className="text-[10px] font-mono text-dim tracking-wider uppercase">
+              <div className="text-[11px] font-mono text-dim tracking-wider uppercase">
                 COMPOSITE SUITABILITY — {composite.site}
               </div>
               <div className="text-2xl font-mono font-bold text-green mt-0.5">
@@ -237,7 +275,7 @@ export default function MissionPlannerScreen({
 
         {/* Section 2: Rover Route Planning & High-Speed Concept */}
         <div className="mission-panel p-4 bg-[#0E1522] mb-4">
-          <div className="flex items-center justify-between pb-2 border-b border-[#1A293E] mb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#1A293E] mb-3">
             <div className="flex items-center gap-2">
               <Route className="w-4 h-4 text-cyan" />
               <h3 className="text-xs font-mono font-bold text-primary tracking-wider uppercase">
@@ -245,13 +283,37 @@ export default function MissionPlannerScreen({
               </h3>
             </div>
 
-            <button
-              onClick={handlePlanRoute}
-              className="btn-mission py-1.5 px-3 text-[11px] flex items-center gap-1.5"
-            >
-              <Navigation className="w-3.5 h-3.5" />
-              <span>PLAN ROVER ROUTE</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handlePlanRoute}
+                className="btn-mission py-1.5 px-3 text-[11px] flex items-center gap-1.5"
+              >
+                <Navigation className="w-3.5 h-3.5" />
+                <span>PLAN ROVER ROUTE</span>
+              </button>
+
+              {routePlanned && (
+                <button
+                  onClick={() => dispatchPlayback({ type: 'TOGGLE', maxIndex: maxWaypointIndex })}
+                  className={`btn-mission py-1.5 px-3 text-[11px] flex items-center gap-1.5 ${
+                    playback.isPlaying ? 'btn-mission-secondary' : 'btn-mission-green'
+                  }`}
+                  aria-label={playback.isPlaying ? 'Pause rover route playback' : 'Play rover route playback'}
+                >
+                  {playback.isPlaying ? (
+                    <>
+                      <Pause className="w-3.5 h-3.5" />
+                      <span>PAUSE</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      <span>{playback.index >= maxWaypointIndex ? 'REPLAY' : 'PLAY'}</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="text-xs font-mono text-cyan mb-3">
@@ -261,29 +323,29 @@ export default function MissionPlannerScreen({
           {/* Telemetry Metrics Grid as Specified */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-4 font-mono text-xs">
             <div className="p-2.5 bg-[#090F17] border border-[#162538] rounded">
-              <div className="text-dim text-[10px]">DISTANCE</div>
+              <div className="text-dim text-[11px]">DISTANCE</div>
               <div className="text-base font-bold text-primary">{displayDistance}</div>
             </div>
 
             <div className="p-2.5 bg-[#090F17] border border-[#162538] rounded">
-              <div className="text-dim text-[10px]">ESTIMATED TIME</div>
+              <div className="text-dim text-[11px]">ESTIMATED TIME</div>
               <div className="text-base font-bold text-cyan">{displayTime}</div>
-              <div className="text-[10px] text-dim">{roverData.avgSpeed}</div>
+              <div className="text-[11px] text-dim">{roverData.avgSpeed}</div>
             </div>
 
             <div className="p-2.5 bg-[#090F17] border border-[#162538] rounded">
-              <div className="text-dim text-[10px]">ENERGY BUDGET</div>
+              <div className="text-dim text-[11px]">ENERGY BUDGET</div>
               <div className="text-base font-bold text-green">{displayEnergy}</div>
-              <div className="text-[10px] text-dim">RTG + 840Wh Batt</div>
+              <div className="text-[11px] text-dim">RTG + 840Wh Batt</div>
             </div>
 
             <div className="p-2.5 bg-[#090F17] border border-[#162538] rounded">
-              <div className="text-dim text-[10px]">WAYPOINTS</div>
+              <div className="text-dim text-[11px]">WAYPOINTS</div>
               <div className="text-base font-bold text-primary">{roverData.waypointsCount} STATIONS</div>
             </div>
 
             <div className="p-2.5 bg-[#090F17] border border-[#162538] rounded col-span-2 sm:col-span-2">
-              <div className="text-dim text-[10px]">TERRAIN RISK</div>
+              <div className="text-dim text-[11px]">TERRAIN RISK</div>
               <div className="text-base font-bold text-green flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-green" />
                 <span>{roverData.terrainRisk} (MAX GRADE 6.2°)</span>
@@ -294,10 +356,10 @@ export default function MissionPlannerScreen({
           {/* Prominent High-Speed Rover Concept Label Callout as Requested */}
           <div className="p-3.5 rounded bg-[#101A27] border border-cyan/40">
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="telemetry-tag telemetry-tag-cyan font-bold text-[10px]">
+              <span className="telemetry-tag telemetry-tag-cyan font-bold text-[11px]">
                 {roverData.conceptLabel}
               </span>
-              <span className="text-[10px] font-mono text-secondary">ARCHITECTURAL DESIGN</span>
+              <span className="text-[11px] font-mono text-secondary">ARCHITECTURAL DESIGN</span>
             </div>
             <p className="text-xs text-secondary leading-relaxed font-sans">
               <strong className="text-primary font-mono">Benchmark Reconciliation:</strong> Traversal cruise speed <span className="text-cyan font-mono">≈ 0.5 km/h</span> is ~14× faster than Chandrayaan-3's <em>Pragyan</em> rover (~1 cm/s). Enabled by autonomous real-time stereo visual odometry, active hazard avoidance path planning, brushless direct-drive hub motors, and continuous radioisotope thermal power.

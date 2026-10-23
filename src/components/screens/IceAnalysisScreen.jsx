@@ -19,15 +19,19 @@ import { ICE_DETECTION_RESULTS } from '../../data/missionData';
 
 export default function IceAnalysisScreen({ 
   selectedRegion, 
+  pipeline,
   pipelineCompleted, 
   setPipelineCompleted,
   pipelineRunning,
   setPipelineRunning,
   onNavigateToScreen
 }) {
-  const [currentStepIndex, setCurrentStepIndex] = useState(pipelineCompleted ? 4 : 0);
-  const [pipelineProgress, setPipelineProgress] = useState(pipelineCompleted ? 100 : 0);
-  const [activeTab, setActiveTab] = useState('decision'); // 'decision' | 'radar' | 'classification'
+  // Derive pipeline execution state from the lifted usePipeline hook
+  const isRunning = pipeline ? pipeline.isRunning : pipelineRunning;
+  const isCompleted = pipeline ? pipeline.isDone : pipelineCompleted;
+  const currentStepIndex = pipeline ? pipeline.stageIndex : (isCompleted ? 4 : 0);
+  const pipelineProgress = pipeline ? pipeline.progress : (isCompleted ? 100 : 0);
+
   const [scanBeamAngle, setScanBeamAngle] = useState(0);
 
   const pipelineStages = [
@@ -64,7 +68,7 @@ export default function IceAnalysisScreen({
   // Rotate radar scan angle during analysis
   useEffect(() => {
     let animId;
-    if (pipelineRunning) {
+    if (isRunning) {
       const step = () => {
         setScanBeamAngle((prev) => (prev + 5) % 360);
         animId = requestAnimationFrame(step);
@@ -72,64 +76,36 @@ export default function IceAnalysisScreen({
       animId = requestAnimationFrame(step);
     }
     return () => cancelAnimationFrame(animId);
-  }, [pipelineRunning]);
+  }, [isRunning]);
 
   const handleStartPipeline = () => {
-    if (pipelineRunning) return;
-    setPipelineRunning(true);
-    setPipelineCompleted(false);
-    setCurrentStepIndex(0);
-    setPipelineProgress(5);
-
-    // Sequence stages smoothly with realistic duration (~2.5 seconds total for snappy demo)
-    const stageDuration = 600;
-
-    const timer1 = setTimeout(() => {
-      setCurrentStepIndex(1);
-      setPipelineProgress(30);
-    }, stageDuration);
-
-    const timer2 = setTimeout(() => {
-      setCurrentStepIndex(2);
-      setPipelineProgress(60);
-    }, stageDuration * 2);
-
-    const timer3 = setTimeout(() => {
-      setCurrentStepIndex(3);
-      setPipelineProgress(85);
-    }, stageDuration * 3);
-
-    const timer4 = setTimeout(() => {
-      setCurrentStepIndex(4);
-      setPipelineProgress(100);
-      setPipelineRunning(false);
-      setPipelineCompleted(true);
-    }, stageDuration * 4);
-
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-      clearTimeout(timer4);
-    };
+    if (isRunning) return;
+    if (pipeline) {
+      pipeline.start();
+    } else {
+      setPipelineRunning?.(true);
+      setPipelineCompleted?.(false);
+    }
   };
 
   const handleReset = () => {
-    setPipelineCompleted(false);
-    setPipelineRunning(false);
-    setCurrentStepIndex(0);
-    setPipelineProgress(0);
+    if (pipeline) {
+      pipeline.reset();
+    } else {
+      setPipelineCompleted?.(false);
+      setPipelineRunning?.(false);
+    }
   };
 
   const results = ICE_DETECTION_RESULTS;
 
   return (
-    <div className="w-full h-full flex flex-col overflow-y-auto p-4 lg:p-6 bg-[#0A0E14] select-none">
+    <div className="w-full h-full flex flex-col overflow-y-auto p-4 lg:p-6 bg-[#0A0E14]">
       {/* Page Title & Mission Action Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#1B293C] mb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="telemetry-tag telemetry-tag-cyan font-mono text-[10px]">
+            <span className="telemetry-tag telemetry-tag-cyan font-mono text-[11px]">
               SCREEN 02 // HERO DETECTION
             </span>
             <span className="text-dim font-mono text-xs">|</span>
@@ -146,17 +122,18 @@ export default function IceAnalysisScreen({
         <div className="flex items-center gap-3">
           <button
             onClick={handleStartPipeline}
-            disabled={pipelineRunning}
+            disabled={isRunning}
+            aria-label={isRunning ? 'Executing pipeline' : isCompleted ? 'Re-run pipeline' : 'Analyze region'}
             className={`btn-mission py-2.5 px-5 text-xs ${
-              pipelineCompleted ? 'btn-mission-secondary' : 'pulse-cyan'
+              isCompleted ? 'btn-mission-secondary' : 'pulse-cyan'
             }`}
           >
-            {pipelineRunning ? (
+            {isRunning ? (
               <>
                 <Radio className="w-4 h-4 text-cyan animate-spin" />
                 <span>EXECUTING PIPELINE...</span>
               </>
-            ) : pipelineCompleted ? (
+            ) : isCompleted ? (
               <>
                 <RotateCcw className="w-4 h-4" />
                 <span>RE-RUN PIPELINE</span>
@@ -169,10 +146,11 @@ export default function IceAnalysisScreen({
             )}
           </button>
 
-          {pipelineCompleted && (
+          {isCompleted && (
             <button
               onClick={handleReset}
               title="Reset results"
+              aria-label="Reset results"
               className="p-2.5 rounded bg-[#131E2C] border border-[#21354C] text-secondary hover:text-cyan hover:border-cyan transition-colors"
             >
               <RotateCcw className="w-4 h-4" />
@@ -222,21 +200,21 @@ export default function IceAnalysisScreen({
                 }`}
               >
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] font-mono text-dim font-bold">
+                  <span className="text-[11px] font-mono text-dim font-bold">
                     STAGE 0{idx + 1}
                   </span>
                   {isFinished ? (
-                    <span className="flex items-center gap-1 text-[10px] font-mono text-green">
+                    <span className="flex items-center gap-1 text-[11px] font-mono text-green">
                       <Check className="w-3.5 h-3.5 text-green" />
                       COMPLETE
                     </span>
                   ) : isCurrent ? (
-                    <span className="flex items-center gap-1 text-[10px] font-mono text-cyan animate-pulse">
+                    <span className="flex items-center gap-1 text-[11px] font-mono text-cyan animate-pulse">
                       <Radio className="w-3.5 h-3.5 animate-spin" />
                       PROCESSING
                     </span>
                   ) : (
-                    <span className="text-[10px] font-mono text-dim">PENDING</span>
+                    <span className="text-[11px] font-mono text-dim">PENDING</span>
                   )}
                 </div>
 
@@ -247,7 +225,7 @@ export default function IceAnalysisScreen({
                   {stage.detail}
                 </div>
 
-                <div className="flex items-center justify-between text-[10px] font-mono text-dim pt-2 border-t border-[#18283C]">
+                <div className="flex items-center justify-between text-[11px] font-mono text-dim pt-2 border-t border-[#18283C]">
                   <span>{stage.frequency}</span>
                   <span className="text-cyan">{stage.resolution}</span>
                 </div>
@@ -289,7 +267,7 @@ export default function IceAnalysisScreen({
                     <div className="text-xs font-mono font-bold text-green">
                       STATUS: CONFIRMED
                     </div>
-                    <div className="text-[10px] font-mono text-secondary">
+                    <div className="text-[11px] font-mono text-secondary">
                       Cryogenic Water-Ice Deposition
                     </div>
                   </div>
@@ -306,7 +284,7 @@ export default function IceAnalysisScreen({
                     POLARIMETRIC SIGNATURE RADAR TELEMETRY
                   </h3>
                 </div>
-                <span className="text-[10px] font-mono text-secondary">CH-2 DFSAR L+S</span>
+                <span className="text-[11px] font-mono text-secondary">CH-2 DFSAR L+S</span>
               </div>
 
               <div className="flex flex-col gap-3">
@@ -320,7 +298,7 @@ export default function IceAnalysisScreen({
                         <span className="text-xs font-bold font-mono text-primary">
                           {sig.name}
                         </span>
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#131F2E] text-dim border border-[#1D3046]">
+                        <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[#131F2E] text-dim border border-[#1D3046]">
                           Threshold: {sig.threshold}
                         </span>
                       </div>
@@ -389,7 +367,7 @@ export default function IceAnalysisScreen({
                 <h3 className="text-xs font-mono font-bold text-primary tracking-wider uppercase">
                   MATERIAL CLASSIFICATION MATRIX
                 </h3>
-                <span className="text-[10px] font-mono text-cyan">PIXEL SEGMENTATION</span>
+                <span className="text-[11px] font-mono text-cyan">PIXEL SEGMENTATION</span>
               </div>
 
               <table className="mission-table mb-4">
@@ -422,7 +400,7 @@ export default function IceAnalysisScreen({
               </table>
 
               {/* Horizontal Bar Breakdown */}
-              <div className="text-[10px] font-mono text-dim mb-1 flex justify-between">
+              <div className="text-[11px] font-mono text-dim mb-1 flex justify-between">
                 <span>VOLUMETRIC SURFACE RATIO</span>
                 <span>TOTAL: 100.0%</span>
               </div>
@@ -454,7 +432,7 @@ export default function IceAnalysisScreen({
                 <span className="text-xs font-mono font-bold text-primary tracking-wider uppercase">
                   RADAR BACKSCATTER CROSS-SECTION (L+S BAND)
                 </span>
-                <span className="text-[10px] font-mono text-green">STOKES DECOMPOSED</span>
+                <span className="text-[11px] font-mono text-green">STOKES DECOMPOSED</span>
               </div>
 
               {/* Simulated Radar Waveform Oscilloscope Graphic */}
@@ -477,7 +455,7 @@ export default function IceAnalysisScreen({
 
                   {/* CPR threshold line at 1.0 */}
                   <line x1="0" y1="35" x2="300" y2="35" stroke="#FFB020" strokeWidth="1" strokeDasharray="2 2" opacity="0.6" />
-                  <text x="5" y="32" fill="#FFB020" fontSize="7" fontFamily="var(--font-mono)">CPR 1.0 THRESHOLD</text>
+                  <text x="5" y="32" fill="#FFB020" fontSize="11" fontFamily="var(--font-mono)">CPR 1.0 THRESHOLD</text>
 
                   {/* Volumetric Ice Peak Waveform */}
                   <path
@@ -492,12 +470,12 @@ export default function IceAnalysisScreen({
                   />
                   {/* Peak Marker */}
                   <circle cx="150" cy="15" r="3" fill="#00E676" />
-                  <text x="160" y="16" fill="#00E676" fontSize="8" fontFamily="var(--font-mono)" fontWeight="bold">
+                  <text x="160" y="16" fill="#00E676" fontSize="11" fontFamily="var(--font-mono)" fontWeight="bold">
                     PEAK CPR: 1.42 (ICE)
                   </text>
                 </svg>
 
-                <div className="flex items-center justify-between text-[9px] font-mono text-dim pt-1">
+                <div className="flex items-center justify-between text-[11px] font-mono text-dim pt-1">
                   <span>DISTANCE: 0 km (RIM)</span>
                   <span>10.6 km (CRATER FLOOR CENTER)</span>
                   <span>21.3 km (SOUTH RIM)</span>

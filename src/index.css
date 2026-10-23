@@ -41,7 +41,7 @@
   
   --text-primary: #E6EDF3;
   --text-secondary: #8B98A5;
-  --text-dim: #4B5A6C;
+  --text-dim: #7E91A6;
 
   --cyan-accent: #00D9FF;
   --cyan-dim: rgba(0, 217, 255, 0.15);
@@ -70,23 +70,20 @@
 
 html, body {
   width: 100%;
-  height: 100%;
-  overflow: hidden;
+  min-height: 100%;
   background-color: var(--bg-space);
   color: var(--text-primary);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  user-select: none;
 }
 
 #root {
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   background-color: var(--bg-space);
-  overflow: hidden;
 }
 
 /* Custom Scrollbar for mission logs and reports */
@@ -400,3 +397,60 @@ input[type="range"]::-webkit-slider-thumb:hover {
   background: linear-gradient(90deg, rgba(0, 217, 255, 0.12) 0%, rgba(0, 217, 255, 0.01) 100%);
   border-left-color: var(--cyan-accent);
 }
+
+/* Accessibility: Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .pulse-cyan,
+  .pulse-green,
+  .radar-sweeper,
+  .animate-pulse,
+  .animate-spin,
+  .scanline-overlay {
+    animation: none !important;
+  }
+}
+
+/* Accessibility & Print: Print only the report dossier */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .report-print-area,
+  .report-print-area * {
+    visibility: visible;
+  }
+  .report-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 20px;
+    background: #FFFFFF !important;
+    color: #111827 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .report-print-area text,
+  .report-print-area span,
+  .report-print-area div,
+  .report-print-area p,
+  .report-print-area h1,
+  .report-print-area h2,
+  .report-print-area td,
+  .report-print-area th {
+    color: #111827 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+

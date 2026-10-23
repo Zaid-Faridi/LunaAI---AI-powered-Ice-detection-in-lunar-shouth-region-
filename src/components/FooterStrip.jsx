@@ -3,7 +3,7 @@ import { Database, ShieldCheck, Cpu, HardDrive } from 'lucide-react';
 
 export default function FooterStrip() {
   return (
-    <footer className="w-full bg-[#080C12] border-t border-[#172436] px-4 py-2 flex items-center justify-between z-40 text-xs font-mono select-none flex-none">
+    <footer className="w-full bg-[#080C12] border-t border-[#172436] px-4 py-2 flex items-center justify-between z-40 text-xs font-mono flex-none">
       {/* Left: Representative Disclaimer as requested */}
       <div className="flex items-center gap-2 text-secondary">
         <span className="w-2 h-2 rounded-full bg-cyan animate-pulse" />
@@ -13,7 +13,7 @@ export default function FooterStrip() {
       </div>
 
       {/* Right: Technical Pipeline Metadata */}
-      <div className="hidden md:flex items-center gap-4 text-[10px] text-dim font-mono">
+      <div className="hidden md:flex items-center gap-4 text-[11px] text-dim font-mono">
         <div className="flex items-center gap-1.5">
           <Cpu className="w-3 h-3 text-cyan" />
           <span>MODEL: U-Net (L+S Band) + RF Ensemble</span>

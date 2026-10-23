@@ -8,63 +8,68 @@ export default function TerrainLayer({ regions = [], activeLayers = {} }) {
 
   return (
     <g id="lunar-craters">
-      {/* Surrounding Topographic Uplifts & High Ridges */}
-      {/* Malapert Mountain Uplift */}
-      <ellipse
-        cx="250"
-        cy="220"
-        rx="60"
-        ry="35"
-        transform="rotate(-30 250 220)"
-        fill="#141E2B"
-        stroke="#25384E"
-        strokeWidth="1.5"
-      />
-      <path
-        d="M 220 200 Q 250 180 290 220"
-        stroke="#3A5370"
-        strokeWidth="2"
-        fill="none"
-        opacity="0.6"
-      />
-      <text
-        x="250"
-        y="210"
-        fill="#71869E"
-        fontSize="9"
-        fontFamily="var(--font-mono)"
-        textAnchor="middle"
-      >
-        MALAPERT MASSIF
-      </text>
+      {/* 1. Surrounding Topographic Uplifts & High Ridges (DEM Elevation Layer) */}
+      {activeLayers.terrain && (
+        <g id="dem-topography">
+          {/* Malapert Mountain Uplift */}
+          <ellipse
+            cx="250"
+            cy="220"
+            rx="60"
+            ry="35"
+            transform="rotate(-30 250 220)"
+            fill="#141E2B"
+            stroke="#25384E"
+            strokeWidth="1.5"
+          />
+          <path
+            d="M 220 200 Q 250 180 290 220"
+            stroke="#3A5370"
+            strokeWidth="2"
+            fill="none"
+            opacity="0.6"
+          />
+          <text
+            x="250"
+            y="210"
+            fill="#7E91A6"
+            fontSize="11"
+            fontFamily="var(--font-mono)"
+            textAnchor="middle"
+          >
+            MALAPERT MASSIF
+          </text>
 
-      {/* Nobile Crater */}
-      <circle cx="580" cy="520" r="55" fill="#0C1520" stroke="#1F2F43" strokeWidth="1.5" />
-      <circle cx="580" cy="520" r="45" fill="#080D15" />
-      <text
-        x="580"
-        y="525"
-        fill="#6A8098"
-        fontSize="9"
-        fontFamily="var(--font-mono)"
-        textAnchor="middle"
-      >
-        NOBILE
-      </text>
+          {/* Nobile Crater */}
+          <circle cx="580" cy="520" r="55" fill="#0C1520" stroke="#1F2F43" strokeWidth="1.5" />
+          <circle cx="580" cy="520" r="45" fill="#080D15" />
+          <text
+            x="580"
+            y="525"
+            fill="#7E91A6"
+            fontSize="11"
+            fontFamily="var(--font-mono)"
+            textAnchor="middle"
+          >
+            NOBILE
+          </text>
 
-      {/* Amundsen Crater Rim (edge) */}
-      <circle cx="680" cy="280" r="65" fill="#0A111A" stroke="#1A2839" strokeWidth="1" />
-      <text
-        x="680"
-        y="285"
-        fill="#586E85"
-        fontSize="8"
-        fontFamily="var(--font-mono)"
-        textAnchor="middle"
-      >
-        AMUNDSEN
-      </text>
+          {/* Amundsen Crater Rim (edge) */}
+          <circle cx="680" cy="280" r="65" fill="#0A111A" stroke="#1A2839" strokeWidth="1" />
+          <text
+            x="680"
+            y="285"
+            fill="#7E91A6"
+            fontSize="11"
+            fontFamily="var(--font-mono)"
+            textAnchor="middle"
+          >
+            AMUNDSEN
+          </text>
+        </g>
+      )}
 
+      {/* 2. Candidate Craters (Independent of DEM toggle) */}
       {/* Shoemaker Crater (Candidate C) */}
       <circle
         cx={shoemaker.mapX}
@@ -127,7 +132,6 @@ export default function TerrainLayer({ regions = [], activeLayers = {} }) {
       />
 
       {/* SHACKLETON CRATER (Hero Feature - exactly at South Pole 89.90°S) */}
-      {/* Outer Crater Rim (elevated +1.2 km) */}
       <circle
         cx={shackleton.mapX}
         cy={shackleton.mapY}
@@ -137,7 +141,7 @@ export default function TerrainLayer({ regions = [], activeLayers = {} }) {
         strokeWidth="2.5"
       />
 
-      {/* Sunlit Connecting Ridge Rim Crest (High solar incidence ~86%) */}
+      {/* Sunlit Connecting Ridge Rim Crest (High solar incidence ~86%) - SOLAR Toggle */}
       {activeLayers.illumination && (
         <path
           d={`M ${shackleton.mapX - 35} ${shackleton.mapY - 20} C ${shackleton.mapX - 25} ${shackleton.mapY - 40}, ${shackleton.mapX + 20} ${shackleton.mapY - 38}, ${shackleton.mapX + 35} ${shackleton.mapY - 20}`}
@@ -149,8 +153,8 @@ export default function TerrainLayer({ regions = [], activeLayers = {} }) {
         />
       )}
 
-      {/* Permanent Shadow Region (PSR) Deep Floor (<0.3% illumination) */}
-      {activeLayers.illumination && (
+      {/* Permanent Shadow Region (PSR) Deep Floor (<0.3% illumination) - PSR Toggle */}
+      {activeLayers.psr && (
         <ellipse
           cx={shackleton.mapX + 2}
           cy={shackleton.mapY + 4}

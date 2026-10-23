@@ -167,7 +167,7 @@ export default function LunarMap({
   };
 
   return (
-    <div className="relative w-full h-full overflow-hidden bg-[#070B10] flex flex-col select-none">
+    <div className="relative w-full h-full overflow-hidden bg-[#070B10] flex flex-col">
       <MapControls
         zoomBy={zoomBy}
         onResetView={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
@@ -192,7 +192,7 @@ export default function LunarMap({
             transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}
           >
             <MapGrid />
-            {activeLayers.terrain && <TerrainLayer regions={CANDIDATE_REGIONS} activeLayers={activeLayers} />}
+            <TerrainLayer regions={CANDIDATE_REGIONS} activeLayers={activeLayers} />
             {activeLayers.divinerThermal && <ThermalLayer regions={CANDIDATE_REGIONS} />}
             {activeLayers.radarCpr && <CprLayer regions={CANDIDATE_REGIONS} />}
             {activeLayers.landingZone && <LandingZoneLayer waypoints={ROVER_MISSION_DATA.waypoints} />}

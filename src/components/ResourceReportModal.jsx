@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { 
   X, 
   Printer, 
@@ -16,6 +16,69 @@ import { RESOURCE_ESTIMATION, ICE_DETECTION_RESULTS } from '../data/missionData'
 import { waterMass, uncertaintyRange } from '../lib/calc';
 
 export default function ResourceReportModal({ isOpen, onClose, selectedRegion, calculationData }) {
+  const modalRef = useRef(null);
+  const previouslyFocusedElement = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Save previous focus so we can restore it when dialog closes
+    previouslyFocusedElement.current = document.activeElement;
+
+    // Move focus into dialog on open
+    const focusTimer = setTimeout(() => {
+      const focusable = modalRef.current?.querySelectorAll(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable && focusable.length > 0) {
+        focusable[0].focus();
+      }
+    }, 10);
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+
+      if (e.key === 'Tab') {
+        if (!modalRef.current) return;
+        const focusableElements = Array.from(
+          modalRef.current.querySelectorAll(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )
+        );
+        if (focusableElements.length === 0) return;
+
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      clearTimeout(focusTimer);
+      window.removeEventListener('keydown', handleKeyDown);
+      if (previouslyFocusedElement.current && typeof previouslyFocusedElement.current.focus === 'function') {
+        previouslyFocusedElement.current.focus();
+      }
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const res = calculationData || RESOURCE_ESTIMATION;
@@ -43,9 +106,25 @@ export default function ResourceReportModal({ isOpen, onClose, selectedRegion, c
     window.print();
   };
 
+  const handleBackdropClick = (e) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto select-none">
-      <div className="relative w-full max-w-4xl bg-[#0B1017] border border-cyan/50 rounded-sm shadow-[0_0_40px_rgba(0,217,255,0.2)] flex flex-col my-8">
+    <div 
+      role="presentation"
+      onClick={handleBackdropClick}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto"
+    >
+      <div 
+        ref={modalRef}
+        role="dialog" 
+        aria-modal="true" 
+        aria-labelledby="resource-report-title"
+        className="relative w-full max-w-4xl bg-[#0B1017] border border-cyan/50 rounded-sm shadow-[0_0_40px_rgba(0,217,255,0.2)] flex flex-col my-8 report-print-area"
+      >
         {/* Modal Top Bar */}
         <div className="flex items-center justify-between px-6 py-3 bg-[#0F1622] border-b border-[#1D2B3E]">
           <div className="flex items-center gap-2 text-xs font-mono">
@@ -56,6 +135,7 @@ export default function ResourceReportModal({ isOpen, onClose, selectedRegion, c
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrint}
+              aria-label="Print dossier"
               className="btn-mission-secondary px-3 py-1 text-xs flex items-center gap-1.5"
             >
               <Printer className="w-3.5 h-3.5" />
@@ -63,6 +143,7 @@ export default function ResourceReportModal({ isOpen, onClose, selectedRegion, c
             </button>
             <button
               onClick={onClose}
+              aria-label="Close dossier"
               className="p-1 rounded text-secondary hover:text-primary hover:bg-[#1A283B] transition-colors"
             >
               <X className="w-5 h-5" />
@@ -79,7 +160,7 @@ export default function ResourceReportModal({ isOpen, onClose, selectedRegion, c
                 <Satellite className="w-4 h-4 text-cyan" />
                 <span>ISRO // SPACE APPLICATIONS CENTRE (SAC) & IIRS</span>
               </div>
-              <h1 className="text-2xl font-bold font-display tracking-wide text-white uppercase">
+              <h1 id="resource-report-title" className="text-2xl font-bold font-display tracking-wide text-white uppercase">
                 IN-SITU LUNAR VOLATILE & WATER ICE CHARACTERIZATION REPORT
               </h1>
               <div className="text-xs font-mono text-secondary mt-1">
@@ -92,8 +173,8 @@ export default function ResourceReportModal({ isOpen, onClose, selectedRegion, c
                 <ShieldCheck className="w-4 h-4 text-green" />
                 <span>STATUS: VERIFIED</span>
               </div>
-              <div className="text-dim text-[10px] mt-0.5">LEVEL-3 SCIENTIFIC PRODUCT</div>
-              <div className="text-secondary text-[10px]">{timestamp}</div>
+              <div className="text-dim text-[11px] mt-0.5">LEVEL-3 SCIENTIFIC PRODUCT</div>
+              <div className="text-secondary text-[11px]">{timestamp}</div>
             </div>
           </div>
 
@@ -104,19 +185,19 @@ export default function ResourceReportModal({ isOpen, onClose, selectedRegion, c
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono text-xs">
               <div className="p-2.5 bg-[#0D141F] border border-[#1A2636] rounded">
-                <div className="text-dim text-[10px]">REGION NAME</div>
+                <div className="text-dim text-[11px]">REGION NAME</div>
                 <div className="text-white font-bold">{selectedRegion.name}</div>
               </div>
               <div className="p-2.5 bg-[#0D141F] border border-[#1A2636] rounded">
-                <div className="text-dim text-[10px]">COORDINATES</div>
+                <div className="text-dim text-[11px]">COORDINATES</div>
                 <div className="text-cyan font-bold">{selectedRegion.latitude}, {selectedRegion.longitude}</div>
               </div>
               <div className="p-2.5 bg-[#0D141F] border border-[#1A2636] rounded">
-                <div className="text-dim text-[10px]">FLOOR ILLUMINATION</div>
+                <div className="text-dim text-[11px]">FLOOR ILLUMINATION</div>
                 <div className="text-amber font-bold">{selectedRegion.illumination} (True PSR)</div>
               </div>
               <div className="p-2.5 bg-[#0D141F] border border-[#1A2636] rounded">
-                <div className="text-dim text-[10px]">CRYOGENIC TEMP</div>
+                <div className="text-dim text-[11px]">CRYOGENIC TEMP</div>
                 <div className="text-cyan font-bold">{selectedRegion.temperature}</div>
               </div>
             </div>

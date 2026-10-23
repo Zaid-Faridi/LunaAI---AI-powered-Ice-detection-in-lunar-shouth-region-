@@ -62,7 +62,7 @@ export default function PsrExplorerScreen({
         <div className="mission-panel corner-brackets p-3.5 mb-4 bg-[#111A26]">
           <div className="flex items-start justify-between">
             <div>
-              <div className="text-[10px] font-mono text-dim tracking-wider uppercase">
+              <div className="text-[11px] font-mono text-dim tracking-wider uppercase">
                 SELECTED TARGET
               </div>
               <h3 className="text-base font-bold text-primary mt-0.5">
@@ -81,7 +81,7 @@ export default function PsrExplorerScreen({
 
         {/* Canonical Telemetry Key-Value Grid as Specified */}
         <div className="flex flex-col gap-2 mb-4">
-          <div className="text-[10px] font-mono text-dim tracking-wider uppercase mb-0.5">
+          <div className="text-[11px] font-mono text-dim tracking-wider uppercase mb-0.5">
             SURFACE & RADIOMETRIC READOUTS
           </div>
 
