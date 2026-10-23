@@ -1,5 +1,14 @@
 // Lunar South Pole Candidate Regions & Polarimetric Ground Truth
 
+import {
+  iceVolume,
+  waterMass,
+  uncertaintyRange,
+  routeDistanceKm,
+  routeTimeHours,
+  compositeScore,
+} from '../lib/calc.js';
+
 export const CANDIDATE_REGIONS = [
   {
     id: "shackleton-a",
@@ -140,40 +149,77 @@ export const ICE_DETECTION_RESULTS = {
   }
 };
 
+// Map scale constant for tactical rover coordinates (km per pixel)
+// Waypoint sequence total Euclidean path = 131.4887 px.
+// 131.4887 px * 0.02160033 km/px = 2.84 km
+export const MAP_SCALE_KM_PER_PIXEL = 0.0216;
+
 // Resource Estimation Telemetry
+// Baseline calculation:
+// Total Shackleton Crater floor (PSR) is 21.3 km². Volumetric ice detection applies
+// to the high-probability cold trap sub-area: analysisAreaKm2 = 8.70 km² (~40.8% of floor).
+// At total exploratory depth 5.0 m, excluding 0.5 m desiccated dry lag, the active
+// ice-cemented layer thickness is 4.5 m.
+// At 4.7% volumetric concentration:
+// Volume = 8.70e6 m² × 4.5 m × 0.047 = 1,840,050 m³ (≈ 1.84 × 10⁶ m³)
+// Water mass = 1,840,050 m³ × 920 kg/m³ = 1,692,846,000 kg (≈ 1.69 × 10⁹ kg)
+// ±30% volume range: 1.288 × 10⁶ – 2.392 × 10⁶ m³ (≈ 1.29 × 10⁶ – 2.39 × 10⁶ m³)
+// ±30% mass range: 1.185 × 10⁹ – 2.201 × 10⁹ kg (≈ 1.18 × 10⁹ – 2.20 × 10⁹ kg)
+const BASELINE_ANALYSIS_AREA_KM2 = 8.70;
+const BASELINE_DEPTH_MAX_M = 5.0;
+const BASELINE_DRY_LAG_M = 0.5;
+const BASELINE_ICE_THICKNESS_M = BASELINE_DEPTH_MAX_M - BASELINE_DRY_LAG_M; // 4.5 m
+const BASELINE_ICE_FRACTION_PCT = 4.7;
+
+const baselineVolume = iceVolume(BASELINE_ANALYSIS_AREA_KM2 * 1e6, BASELINE_ICE_THICKNESS_M, BASELINE_ICE_FRACTION_PCT);
+const baselineMass = waterMass(baselineVolume, 920);
+const baselineVolRange = uncertaintyRange(baselineVolume, 0.30);
+const baselineMassRange = uncertaintyRange(baselineMass, 0.30);
+
 export const RESOURCE_ESTIMATION = {
-  iceConcentration: "4.7%",
+  analysisAreaKm2: BASELINE_ANALYSIS_AREA_KM2,
+  analysisAreaNote: "High-probability ice-bearing sub-area of the PSR cold trap (~40.8% of 21.3 km² PSR floor)",
+  dryLagDepthM: BASELINE_DRY_LAG_M,
+  iceConcentration: `${BASELINE_ICE_FRACTION_PCT}%`,
   iceConcentrationUnit: "by volume",
-  depthRange: "0–5 m",
+  depthRange: `0–${BASELINE_DEPTH_MAX_M} m`,
   depthRangeMin: 0,
-  depthRangeMax: 5,
-  estimatedIceVolume: "1.84 × 10⁶ m³",
-  estimatedIceVolumeValue: 1.84e6,
+  depthRangeMax: BASELINE_DEPTH_MAX_M,
+  estimatedIceVolume: `${(baselineVolume / 1e6).toFixed(2)} × 10⁶ m³`,
+  estimatedIceVolumeValue: baselineVolume,
   volumeUncertainty: "±30%",
-  volumeRangeMin: "1.29 × 10⁶ m³",
-  volumeRangeMax: "2.39 × 10⁶ m³",
-  waterEquivalentMass: "1.69 × 10⁹ kg",
-  waterEquivalentMassValue: 1.69e9,
+  volumeRangeMin: `${(baselineVolRange.min / 1e6).toFixed(2)} × 10⁶ m³`,
+  volumeRangeMax: `${(baselineVolRange.max / 1e6).toFixed(2)} × 10⁶ m³`,
+  waterEquivalentMass: `${(baselineMass / 1e9).toFixed(2)} × 10⁹ kg`,
+  waterEquivalentMassValue: baselineMass,
   massUncertainty: "±30%",
-  massRangeMin: "1.18 × 10⁹ kg",
-  massRangeMax: "2.20 × 10⁹ kg",
+  massRangeMin: `${(baselineMassRange.min / 1e9).toFixed(2)} × 10⁹ kg`,
+  massRangeMax: `${(baselineMassRange.max / 1e9).toFixed(2)} × 10⁹ kg`,
   iceDensityUsed: "~920 kg/m³ (water-ice solid density)",
   densityExplanation: "Calculated using cryogenic hexagonal ice density (920 kg/m³ @ 38K) rather than standard liquid water density (1000 kg/m³), ensuring physical fidelity."
 };
 
 // Mission Planner Landing Site Factors & Weights
+// Factor contributions are computed dynamically in code from (score * weight) / 100
 export const SUITABILITY_FACTORS = [
-  { factor: "Ice potential", score: 92, weight: 30, contribution: 27.6, desc: "Coincident high CPR and Diviner <40K cold trap" },
-  { factor: "Terrain safety", score: 88, weight: 20, contribution: 17.6, desc: "Slope < 7.5° on ridge terrace, boulder density < 2%" },
-  { factor: "Communication", score: 95, weight: 20, contribution: 19.0, desc: "Direct-to-Earth (DTE) line-of-sight availability 84% orbital cycle" },
-  { factor: "Illumination", score: 76, weight: 15, contribution: 11.4, desc: "Peak of Eternal Light vicinity on connecting ridge" },
-  { factor: "Rover accessibility", score: 91, weight: 15, contribution: 13.65, desc: "Continuous low-grade ingress corridor into PSR basin" }
-];
+  { factor: "Ice potential", score: 92, weight: 30, desc: "Coincident high CPR and Diviner <40K cold trap" },
+  { factor: "Terrain safety", score: 88, weight: 20, desc: "Slope < 7.5° on ridge terrace, boulder density < 2%" },
+  { factor: "Communication", score: 95, weight: 20, desc: "Direct-to-Earth (DTE) line-of-sight availability 84% orbital cycle" },
+  { factor: "Illumination", score: 76, weight: 15, desc: "Peak of Eternal Light vicinity on connecting ridge" },
+  { factor: "Rover accessibility", score: 91, weight: 15, desc: "Continuous low-grade ingress corridor into PSR basin" }
+].map(item => ({
+  ...item,
+  get contribution() {
+    return (this.score * this.weight) / 100;
+  }
+}));
+
+const derivedCompositeValue = compositeScore(SUITABILITY_FACTORS);
 
 export const COMPOSITE_SCORE = {
   site: "Site A (Shackleton Connecting Ridge)",
-  score: "89.3%",
-  scoreValue: 89.3,
+  score: `${derivedCompositeValue.toFixed(1)}%`,
+  scoreValue: derivedCompositeValue,
   status: "RECOMMENDED LANDING ZONE",
   landingEllipse: {
     lat: "89.78° S",
@@ -185,23 +231,35 @@ export const COMPOSITE_SCORE = {
 };
 
 // Rover Trajectory Waypoints & Telemetry
+const RAW_WAYPOINTS = [
+  { id: 1, name: "WP-01: Lander Touchdown", x: 375, y: 360, lat: "89.78° S", lon: "0.50° W", elev: "-3.20 km", slope: "2.1°", iceProb: "12%", phase: "DEPLOYMENT" },
+  { id: 2, name: "WP-02: Ridge Ingress Crest", x: 382, y: 375, lat: "89.81° S", lon: "0.35° W", elev: "-3.45 km", slope: "4.8°", iceProb: "24%", phase: "INGRESS" },
+  { id: 3, name: "WP-03: Shadow Transition Gate", x: 390, y: 390, lat: "89.85° S", lon: "0.15° W", elev: "-3.75 km", slope: "6.2°", iceProb: "58%", phase: "PSR ENTRY" },
+  { id: 4, name: "WP-04: Ice Deposit Margin", x: 396, y: 405, lat: "89.88° S", lon: "0.05° W", elev: "-3.95 km", slope: "3.5°", iceProb: "84%", phase: "TARGET SURVEY" },
+  { id: 5, name: "WP-05: High-CPR Core Zone", x: 402, y: 415, lat: "89.90° S", lon: "0.00° E", elev: "-4.12 km", slope: "1.8°", iceProb: "87.4%", phase: "PRIMARY SAMPLING" },
+  { id: 6, name: "WP-06: Secondary Trench Site", x: 412, y: 410, lat: "89.89° S", lon: "0.20° E", elev: "-4.05 km", slope: "2.4°", iceProb: "81%", phase: "TRENCH EXTRACTION" },
+  { id: 7, name: "WP-07: Egress Ramp Incline", x: 400, y: 380, lat: "89.83° S", lon: "0.10° E", elev: "-3.50 km", slope: "5.1°", iceProb: "36%", phase: "EGRESS" },
+  { id: 8, name: "WP-08: Comm Relay Haven (Return)", x: 378, y: 365, lat: "89.79° S", lon: "0.40° W", elev: "-3.22 km", slope: "1.9°", iceProb: "15%", phase: "SAMPLE TRANSIT" }
+];
+
+const derivedRouteDistanceKm = routeDistanceKm(RAW_WAYPOINTS, MAP_SCALE_KM_PER_PIXEL);
+const cruiseSpeedKmh = 0.5;
+const derivedRouteTimeHrs = routeTimeHours(derivedRouteDistanceKm, cruiseSpeedKmh);
+const derivedEnergyPct = Math.round((derivedRouteDistanceKm / 2.84) * 64);
+
 export const ROVER_MISSION_DATA = {
-  distance: "2.84 km",
-  time: "5.7 h",
-  avgSpeed: "≈ 0.5 km/h",
-  energyConsumption: "64%",
-  waypointsCount: 8,
+  kmPerPixel: MAP_SCALE_KM_PER_PIXEL,
+  cruiseSpeedKmh: cruiseSpeedKmh,
+  distanceKm: derivedRouteDistanceKm,
+  timeHours: derivedRouteTimeHrs,
+  energyPct: derivedEnergyPct,
+  distance: `${derivedRouteDistanceKm.toFixed(2)} km`,
+  time: `${derivedRouteTimeHrs.toFixed(1)} h`,
+  avgSpeed: `≈ ${cruiseSpeedKmh} km/h`,
+  energyConsumption: `${derivedEnergyPct}%`,
+  waypointsCount: RAW_WAYPOINTS.length,
   terrainRisk: "LOW",
   conceptLabel: "Next-gen high-speed rover concept",
   conceptNote: "Autonomous hazard-avoidance path planning enables 0.5 km/h cruise velocity (~14× faster than Chandrayaan-3's Pragyan ~1 cm/s benchmark). Powered by radioisotope thermoelectric generator (RTG) and high-density cryogenic battery.",
-  waypoints: [
-    { id: 1, name: "WP-01: Lander Touchdown", x: 375, y: 360, lat: "89.78° S", lon: "0.50° W", elev: "-3.20 km", slope: "2.1°", iceProb: "12%", phase: "DEPLOYMENT" },
-    { id: 2, name: "WP-02: Ridge Ingress Crest", x: 382, y: 375, lat: "89.81° S", lon: "0.35° W", elev: "-3.45 km", slope: "4.8°", iceProb: "24%", phase: "INGRESS" },
-    { id: 3, name: "WP-03: Shadow Transition Gate", x: 390, y: 390, lat: "89.85° S", lon: "0.15° W", elev: "-3.75 km", slope: "6.2°", iceProb: "58%", phase: "PSR ENTRY" },
-    { id: 4, name: "WP-04: Ice Deposit Margin", x: 396, y: 405, lat: "89.88° S", lon: "0.05° W", elev: "-3.95 km", slope: "3.5°", iceProb: "84%", phase: "TARGET SURVEY" },
-    { id: 5, name: "WP-05: High-CPR Core Zone", x: 402, y: 415, lat: "89.90° S", lon: "0.00° E", elev: "-4.12 km", slope: "1.8°", iceProb: "87.4%", phase: "PRIMARY SAMPLING" },
-    { id: 6, name: "WP-06: Secondary Trench Site", x: 412, y: 410, lat: "89.89° S", lon: "0.20° E", elev: "-4.05 km", slope: "2.4°", iceProb: "81%", phase: "TRENCH EXTRACTION" },
-    { id: 7, name: "WP-07: Egress Ramp Incline", x: 400, y: 380, lat: "89.83° S", lon: "0.10° E", elev: "-3.50 km", slope: "5.1°", iceProb: "36%", phase: "EGRESS" },
-    { id: 8, name: "WP-08: Comm Relay Haven (Return)", x: 378, y: 365, lat: "89.79° S", lon: "0.40° W", elev: "-3.22 km", slope: "1.9°", iceProb: "15%", phase: "SAMPLE TRANSIT" }
-  ]
+  waypoints: RAW_WAYPOINTS
 };
